@@ -8,9 +8,11 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException, ElementNotInteractableException, ElementNotVisibleException
 
 import requests
 import re
+from lxml import etree
 
 class Chorme_page():
 
@@ -115,7 +117,7 @@ class Chorme_page():
         register_button.click()
 
         # 输入邮箱,发送验证码
-        time.sleep(10)
+        time.sleep(5)
         account_element = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Email"]')))
         account_element.send_keys(email)
 
@@ -130,6 +132,7 @@ class Chorme_page():
         self.driver.execute_script('window.open("https://www.microsoft.com/zh-cn/microsoft-365/outlook/email-and-calendar-software-microsoft-outlook")')
         self.driver.switch_to.window(self.driver.window_handles[1]) # 切换至outlook邮箱
 
+        time.sleep(10)
         signup_button = self.driver.find_element(By.CSS_SELECTOR, 'a.btn.btn-outlook')
         signup_button.click()
 
@@ -143,36 +146,75 @@ class Chorme_page():
         password_element = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="密码"]')))
         password_element.send_keys(password)
 
-        go_next_button = self.driver.find_element(By.CSS_SELECTOR, "input#idSIButton9")
+        go_next_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input#idSIButton9")))
         go_next_button.click()
 
         
         time.sleep(2)
         # 确认隐私保护,禁止保持登录
         try:
-            con_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "span.ms-Button-label.label-117")))
+            con_button = self.driver.find_element(By.CSS_SELECTOR, "span.ms-Button-label.label-117")
             con_button.click()
-            false_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input#idSIButton9")))
+            false_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input#idBtn_Back")))
             false_button.click()
         except NoSuchElementException or TimeoutException:
             try:
-                false_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input#idSIButton9")))
+                false_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input#idBtn_Back")))
                 false_button.click()
             except NoSuchElementException or TimeoutException:
                 print('元素定位失败')
                 quit()
         
         # 获取验证码
-        rubbish_folder = self.driver.find_element(By.CSS_SELECTOR, "div.C2IG3.LPIso.oTkSL.iDEcr")
-        rubbish_folder.click()
+        print('点击垃圾箱')
+        rubbish_folder = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.C2IG3.LPIso.oTkSL.iDEcr.wk4Sg[aria-selected="true"]')))
+        
+        cli_conn = True
+        while cli_conn:
+            try:
+                rubbish_folder.click()
+                cli_conn = False
+                print('点击垃圾箱成功')
+            except (ElementClickInterceptedException, ElementNotInteractableException, ElementNotVisibleException):
+                print('点击垃圾箱失败，继续点击')
+        # 此处一直未能正常点击垃圾箱（虽然显示点击成功,但并未跳转）一直停留在收件箱，导致后续url出错不能正确获取验证码，需解决。
 
-        first_element = self.driver.find_element(By.CSS_SELECTOR, "#groupHeader今天 + div") # 定位id=groupHeader今天的同级下一个div元素
-        first_element.click()
+
+        time.sleep(5)
+        print('获取最新的邮件')
+        first_element = self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='groupHeader今天']/following-sibling::div"))) # 定位 id=groupHeader今天 的同级下一个div元素
+        f_conn = True
+        while f_conn:
+            try:
+                first_element.click() 
+                f_conn = False
+            except (ElementClickInterceptedException, ElementNotInteractableException, ElementNotVisibleException):
+                print('获取最新的邮件失败，继续点击')
+
 
         current_url = self.driver.current_url
-        response = requests.get(current_url)
-        text = response.text()
-        nums = re.findall(r'data-darkreader-inline-color>(\d\d\d\d)</span></p></div>', text)
+
+        print('current_url',current_url)
+
+        re_code = True
+        while re_code:
+            response = requests.get(current_url)
+            print('response',response)
+            if response.status_code == 200:
+                re_code = False
+            else:
+                time.sleep(5)
+
+        
+        text = response.content.decode("utf-8")
+        with open('he.txt', 'w', encoding='utf-8') as f:
+            f.write(text)
+        html = etree.HTML(text)
+
+        nums = html.xpath('//*[@id="UniqueMessageBody"]/div/div/div/div/div/table/tbody/tr/td/div/table/tbody/tr/td/table/tbody/tr[4]/td/div/p')
+        print(nums)
+        # while True:
+        #     time.sleep(60)
         if nums:
             num_code = int(nums[0])
         print('验证码:',num_code)
@@ -298,7 +340,7 @@ def heygen_main():
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    print(len(data))
+                    print('预计注册数量:',len(data))
             except:
                 print('文件路径有误,需重新输入')
                 continue
