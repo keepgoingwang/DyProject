@@ -96,9 +96,22 @@ class Chorme_page():
             idx += 1
             if idx == 2:
                 quit()
+        # 隐私政策
+        fi = True
+        while fi:
+            final_button = self.driver.find_element(By.CSS_SELECTOR,"button")
+            if final_button:
+                final_button.click()
+                fi = False
+        # 禁止保持登录
+        try:
+            false_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input#idBtn_Back")))
+            false_button.click()
+        except NoSuchElementException or TimeoutException:
+            print('元素定位失败')
 
         print('注册成功')
-
+        time.sleep(10)
         # 关闭浏览器
         self.driver.quit()
 
@@ -206,25 +219,6 @@ class Chorme_page():
                 time.sleep(2)
 
 
-        # re_code = True
-        # while re_code:
-        #     response = requests.get(current_url)
-        #     print('response',response)
-        #     if response.status_code == 200:
-        #         re_code = False
-        #     else:
-        #         time.sleep(5)
-
-        
-        # text = response.content.decode("utf-8")
-        # with open('he.txt', 'w', encoding='utf-8') as f:
-        #     f.write(text)
-        # html = etree.HTML(text)
-
-        # nums = html.xpath('//*[@id="UniqueMessageBody"]/div/div/div/div/div/table/tbody/tr/td/div/table/tbody/tr/td/table/tbody/tr[4]/td/div/p')
-        # print(nums)
-        # while True:
-        #     time.sleep(60)
         re_code = True
         while re_code:
             try:
@@ -261,6 +255,17 @@ class Chorme_page():
 
         done_button = self.driver.find_element(By.CSS_SELECTOR, 'button[class="css-8bykl"]')
         done_button.click()
+        
+        # 确保已经跳转到heygen页面注册成功
+        cur_url = self.driver.current_url
+        tr = True
+        while tr:
+            time.sleep(5)
+            cur_url_1 = self.driver.current_url
+            if cur_url_1 != cur_url:
+                tr = False
+
+        print("注册成功")
 
         self.driver.quit()
 
@@ -274,7 +279,6 @@ def save_emails_to_json(emails):
 
 def email_main():
     url = 'https://www.microsoft.com/zh-cn/microsoft-365/outlook/email-and-calendar-software-microsoft-outlook/'
-    page = Chorme_page(url)
     # 获取要注册的邮箱数量
     num_emails = int(input("请输入要注册的邮箱数量(最多12个):"))
     while num_emails > 12 or num_emails == '':
@@ -297,10 +301,12 @@ def email_main():
 
     # 逐个注册邮箱
     for i in range(num_emails):
+        page = Chorme_page(url)
         if if_input == 'YES' or  if_input == 'Y':
             email = input(f"请输入第{i+1}个邮箱名称：")
             password = input(f"请输入第{i+1}个邮箱密码：")
         else:
+            print(f"请输入第{i+1}个邮箱注册")
             account_num = random.randint(5,12)
             email_f = ''.join(random.sample(list('abcdefghijklmnopqrstuvwxyz0123456789'),account_num))
             while email_f[0].isdigit(): # 判断是否第一个元素为数字
@@ -314,14 +320,17 @@ def email_main():
         try:
             page.register_outlook_email(email, password)
             emails[email + email_b] = password
-            time.sleep(10)
+            
+            time.sleep(2)
+
         except Exception as e:
             print(e)
             if_conn = str(input("邮箱注册失败, 是否进行下一个注册(Y or N):")).upper()
             if if_conn not in ['Y', 'YES']:
                 print(emails)
-                save_emails_to_json(emails)
-                quit()
+                if len(emails) > 0:
+                    save_emails_to_json(emails)
+                    quit()
 
 
         
@@ -339,7 +348,6 @@ def heygen_main():
     if heygen_url == '':
         heygen_url = 'https://app.heygen.com/guest/templates?cid=ab45d201'
     
-    page = Chorme_page(heygen_url)
     if_manual = str(input('是否自定义邮箱账号,密码(Y or N):'))
     if_manual = if_manual.upper()
     while not (if_manual == 'YES' or if_manual == 'Y' or if_manual == 'NO' or if_manual == 'N'): 
@@ -349,15 +357,16 @@ def heygen_main():
     if if_manual == 'Y' or if_manual =='YES':
         con =True
         while con:
+            page = Chorme_page(heygen_url)
             account = input(f"请输入账号名称:")
             password = input(f"请输入账号密码:")
-            # try:
-            page.register_heygen_account(account, password)
-            print(f'账号注册成功')
-            # except:
-            #     print(f'账号注册失败')
+            try:
+                page.register_heygen_account(account, password)
+                print(f'账号注册成功')
+            except:
+                print(f'账号注册失败')
 
-            if_con = str(input('是否继续进行批量注册:(Yes or No):')).upper()
+            if_con = str(input('是否继续进行注册:(Yes or No):')).upper()
             if if_con == 'Y' or if_con == 'YES':
                 con = True
             else:
@@ -380,11 +389,12 @@ def heygen_main():
                 continue
 
             for idx, account in enumerate(data.keys()):
+                page = Chorme_page(heygen_url)
                 password = data[account]
                 # try:
                 page.register_heygen_account(account, password)
                 print(f'第{idx+1}个账号注册成功,进行第下一个')
-                time.sleep(10)
+                time.sleep(2)
                 # except:
                 #     print(f'第{idx+1}个账号注册失败,进行第下一个')
             print(f'本批次共计{len(data)}注册成功')
