@@ -167,56 +167,76 @@ class Chorme_page():
         
         # 获取验证码
         print('点击垃圾箱')
-        rubbish_folder = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.C2IG3.LPIso.oTkSL.iDEcr.wk4Sg[aria-selected="true"]')))
-        
+        time.sleep(15)
+        # rubbish_folder = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.C2IG3.LPIso.oTkSL.iDEcr.wk4Sg[aria-selected="true"]')))
+        js = 'document.querySelector(\'div.C2IG3.LPIso.oTkSL.iDEcr[aria-selected="false"] span.gtcPn\').click()'
         cli_conn = True
         while cli_conn:
             try:
-                rubbish_folder.click()
+                # rubbish_folder.click()
+                self.driver.execute_script(js)
                 cli_conn = False
                 print('点击垃圾箱成功')
             except (ElementClickInterceptedException, ElementNotInteractableException, ElementNotVisibleException):
                 print('点击垃圾箱失败，继续点击')
+                time.sleep(2)
         # 此处一直未能正常点击垃圾箱（虽然显示点击成功,但并未跳转）一直停留在收件箱，导致后续url出错不能正确获取验证码，需解决。
-
-
+        # 解决方案：使用js
+        
         time.sleep(5)
         print('获取最新的邮件')
-        first_element = self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='groupHeader今天']/following-sibling::div"))) # 定位 id=groupHeader今天 的同级下一个div元素
+        first_element = self.wait.until(EC.visibility_of_element_located((By.XPATH, '//*[@id="groupHeader今天"]/../child::*[position()=2]'))) # 定位 id=groupHeader今天 的同级下一个div元素
         f_conn = True
         while f_conn:
             try:
                 first_element.click() 
-                f_conn = False
+                current_url = self.driver.current_url
+                # print('current_url',current_url)
+                if not current_url.endswith('junkemail'):
+                    f_conn = False
+                    print('获取最新的邮件成功')
+                    print(current_url)
             except (ElementClickInterceptedException, ElementNotInteractableException, ElementNotVisibleException):
                 print('获取最新的邮件失败，继续点击')
+                time.sleep(2)
 
 
-        current_url = self.driver.current_url
-
-        print('current_url',current_url)
-
-        re_code = True
-        while re_code:
-            response = requests.get(current_url)
-            print('response',response)
-            if response.status_code == 200:
-                re_code = False
-            else:
-                time.sleep(5)
+        # re_code = True
+        # while re_code:
+        #     response = requests.get(current_url)
+        #     print('response',response)
+        #     if response.status_code == 200:
+        #         re_code = False
+        #     else:
+        #         time.sleep(5)
 
         
-        text = response.content.decode("utf-8")
-        with open('he.txt', 'w', encoding='utf-8') as f:
-            f.write(text)
-        html = etree.HTML(text)
+        # text = response.content.decode("utf-8")
+        # with open('he.txt', 'w', encoding='utf-8') as f:
+        #     f.write(text)
+        # html = etree.HTML(text)
 
-        nums = html.xpath('//*[@id="UniqueMessageBody"]/div/div/div/div/div/table/tbody/tr/td/div/table/tbody/tr/td/table/tbody/tr[4]/td/div/p')
-        print(nums)
+        # nums = html.xpath('//*[@id="UniqueMessageBody"]/div/div/div/div/div/table/tbody/tr/td/div/table/tbody/tr/td/table/tbody/tr[4]/td/div/p')
+        # print(nums)
         # while True:
         #     time.sleep(60)
-        if nums:
-            num_code = int(nums[0])
+        re_code = True
+        while re_code:
+            try:
+                nums = self.driver.find_element(By.XPATH, '//*[@id="UniqueMessageBody"]/div/div/div/div/div/table/tbody/tr/td/div/table/tbody/tr/td/table/tbody/tr[4]/td/div/p').text
+                print(nums)
+                if nums:
+                    num_code = int(nums[0])
+                    re_code = False
+                else:
+                    if_conn_code = str(input('验证码获取失败,是否重新获取(Y or N):')).upper()
+                    if if_conn_code not in ['Y','YES']:
+                        print('用户不继续,退出')
+                        quit()
+            except NoSuchElementException or TimeoutException:
+                num_code = int(input('请输入验证码:'))
+                re_code = False
+
         print('验证码:',num_code)
 
         # 切回第一个页面进行设置
@@ -225,7 +245,7 @@ class Chorme_page():
         # 输入验证码
         code_element = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Verification Code"]')))
         code_element.send_keys(num_code)
-        code_next_button = self.driver.find_element(By.CLASS_NAME,'css-7spms1.css-7orpxh btnContent')
+        code_next_button = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR,'button[class="css-7spms1"]')))
         code_next_button.click()
 
         # 输入密码
@@ -234,7 +254,7 @@ class Chorme_page():
         confirm_password_element = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Confirm New Password"]')))
         confirm_password_element.send_keys(password)
 
-        done_button = self.driver.find_element(By.CLASS_NAME, 'css-8bykl.css-7orpxh btnContent')
+        done_button = self.driver.find_element(By.CSS_SELECTOR, 'button[class="css-8bykl"]')
         done_button.click()
 
 
