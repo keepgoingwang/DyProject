@@ -89,8 +89,13 @@ class Chorme_page():
 
         print('等待用户进行非人机验证')
         if_done = str(input('是否完成验证(Y or N):'))
+        idx = 0
         while if_done.upper() == 'N':
+             
             if_done = str(input('请先完成非人机验证(Y or N):'))
+            idx += 1
+            if idx == 2:
+                quit()
 
         print('注册成功')
 
@@ -257,6 +262,8 @@ class Chorme_page():
         done_button = self.driver.find_element(By.CSS_SELECTOR, 'button[class="css-8bykl"]')
         done_button.click()
 
+        self.driver.quit()
+
 
 
 def save_emails_to_json(emails):
@@ -298,7 +305,7 @@ def email_main():
             email_f = ''.join(random.sample(list('abcdefghijklmnopqrstuvwxyz0123456789'),account_num))
             while email_f[0].isdigit(): # 判断是否第一个元素为数字
                 email_f = email_f[1:]
-            email_b = str('@outloot.com')
+            email_b = str('@outlook.com')
             email = email_f # + email_b
             password_1 = ''.join(random.sample(list('ABCDEFGHIJKLMNOPQRSTUVWSYZabcdefghijklmnopqrstuvwxyz'),8))
             password_2 = ''.join(random.sample(list('0123456789'),2))
@@ -307,8 +314,15 @@ def email_main():
         try:
             page.register_outlook_email(email, password)
             emails[email + email_b] = password
-        except:
-            print("邮箱注册失败, 进行下一个注册!")
+            time.sleep(10)
+        except Exception as e:
+            print(e)
+            if_conn = str(input("邮箱注册失败, 是否进行下一个注册(Y or N):")).upper()
+            if if_conn not in ['Y', 'YES']:
+                print(emails)
+                save_emails_to_json(emails)
+                quit()
+
 
         
     # 保存邮箱和密码到JSON文件
@@ -370,6 +384,7 @@ def heygen_main():
                 # try:
                 page.register_heygen_account(account, password)
                 print(f'第{idx+1}个账号注册成功,进行第下一个')
+                time.sleep(10)
                 # except:
                 #     print(f'第{idx+1}个账号注册失败,进行第下一个')
             print(f'本批次共计{len(data)}注册成功')
